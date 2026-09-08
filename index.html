@@ -34,11 +34,9 @@
             .active-tab { border-left: 4px solid #0d9488; }
         }
 
-        /* Custom Scrollbar */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* Google Calendar Custom Grid Style */
         .gcal-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -119,7 +117,7 @@
     </div>
 
     <!-- Bottom Navigation Bar (สำหรับ มือถือ) -->
-    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-1.5 flex justify-around items-center z-30 shadow-lg" id="bottomMobileNav">
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-1.5 flex justify-around items-center z-30 shadow-lg">
         <button onclick="switchTab('dashboard')" id="mob-nav-dashboard" class="flex flex-col items-center gap-1 p-2 text-teal-600 font-semibold">
             <i class="fa-solid fa-border-all text-lg"></i>
             <span class="text-[10px]">ภาพรวม</span>
@@ -230,7 +228,6 @@
 
         <!-- PAGE 2: ปฏิทินรับชำระ (GOOGLE CALENDAR DARK NATIVE) -->
         <section id="page-calendar" class="hidden -m-2 md:m-0 bg-[#121316] text-slate-200 min-h-screen md:min-h-0 md:rounded-2xl overflow-hidden p-3 relative">
-            <!-- Header ปฏิทินแบบ Google Calendar -->
             <div class="flex items-center justify-between pb-2 border-b border-slate-800">
                 <div class="flex items-center gap-3">
                     <button onclick="switchTab('dashboard')" class="md:hidden text-slate-400 p-1"><i class="fa-solid fa-bars text-lg"></i></button>
@@ -242,18 +239,14 @@
                 </div>
             </div>
 
-            <!-- Month Pills สไลด์เลือกเดือน -->
             <div class="flex gap-2 overflow-x-auto py-2.5 no-scrollbar text-xs border-b border-slate-800/60" id="gcalMonthPills"></div>
 
-            <!-- Header ชื่อวัน (อา - ส) -->
             <div class="grid grid-cols-7 text-center text-[11px] font-semibold text-slate-400 py-2 border-b border-slate-800/40">
                 <div>อา</div><div>จ</div><div>อ</div><div>พ</div><div>พฤ</div><div>ศ</div><div>ส</div>
             </div>
 
-            <!-- Grid ตารางวันที่เต็มจอ -->
             <div class="gcal-grid border-b border-slate-800/40" id="gcalGrid"></div>
 
-            <!-- ปุ่มลอย + สีน้ำเงิน Google Calendar Style -->
             <button onclick="openModal()" class="fixed bottom-20 right-5 md:bottom-8 md:right-8 w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-xl hover:bg-blue-500 transition z-20">
                 <i class="fa-solid fa-plus"></i>
             </button>
@@ -379,6 +372,23 @@
         </div>
     </div>
 
+    <!-- Modal ยืนยันการชำระเงิน (Confirm Payment Modal) -->
+    <div id="confirmPaidModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
+            <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mx-auto">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-slate-800">ยืนยันการรับชำระเงิน</h3>
+                <p class="text-xs text-slate-500 mt-1">คุณต้องการบันทึกว่า <span id="confirmBorrowerName" class="font-bold text-slate-700"></span> ชำระเงินแล้วใช่หรือไม่?</p>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button type="button" onclick="closeConfirmModal()" class="w-1/2 bg-slate-100 text-slate-600 py-2.5 rounded-xl text-sm font-medium">ยกเลิก</button>
+                <button type="button" id="confirmPaidYesBtn" class="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-sm font-medium">ยืนยันจ่ายแล้ว</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase SDK (Modular Version 9+) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -420,7 +430,8 @@
     <script>
         let statusChart = null;
         let datePicker = null;
-        let currentCalDate = new Date(); // วันปัจจุบันสำหรับ Google Calendar
+        let currentCalDate = new Date();
+        let pendingPaidId = null; // ตัวแปรเก็บ ID ที่รอการยืนยัน
 
         const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
         const thaiMonthsShort = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -599,12 +610,35 @@
                             <div class="text-[10px] text-slate-500">กำหนด: ${formatDateThai(dueDateStr)}</div>
                             <div class="text-[11px] font-semibold text-teal-600">ดอกเบี้ย: ฿${interest.toLocaleString()}</div>
                         </div>
-                        <button onclick="updateStatus(${item.id}, 'paid')" class="bg-emerald-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium">
+                        <button onclick="confirmUpdateStatus(${item.id}, 'paid')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition shadow-sm">
                             <i class="fa-solid fa-check mr-1"></i> จ่ายแล้ว
                         </button>
                     </div>
                 `;
             });
+        }
+
+        // ฟังก์ชันเปิดหน้าต่างยืนยันการจ่ายเงิน
+        function confirmUpdateStatus(id, newStatus) {
+            if (newStatus === 'paid') {
+                const loan = window.loans.find(l => l.id === id);
+                if (!loan) return;
+                pendingPaidId = id;
+                document.getElementById('confirmBorrowerName').innerText = loan.name;
+                document.getElementById('confirmPaidModal').classList.remove('hidden');
+                
+                document.getElementById('confirmPaidYesBtn').onclick = function() {
+                    updateStatus(pendingPaidId, 'paid');
+                    closeConfirmModal();
+                };
+            } else {
+                updateStatus(id, newStatus);
+            }
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmPaidModal').classList.add('hidden');
+            pendingPaidId = null;
         }
 
         function getStatusBadgeHtml(status) {
@@ -630,14 +664,12 @@
             });
         }
 
-        /* GOOGLE CALENDAR NATIVE ENGINE */
         function renderNativeCalendar() {
             const year = currentCalDate.getFullYear();
             const month = currentCalDate.getMonth();
 
             document.getElementById('gcalTitle').innerText = `${thaiMonths[month]} ${year + 543}`;
 
-            // Month Pills
             const pillsEl = document.getElementById('gcalMonthPills');
             pillsEl.innerHTML = '';
             for (let i = -2; i <= 3; i++) {
@@ -653,7 +685,6 @@
                 `;
             }
 
-            // Grid Calculations
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const daysInPrevMonth = new Date(year, month, 0).getDate();
@@ -662,7 +693,7 @@
             const gridEl = document.getElementById('gcalGrid');
             gridEl.innerHTML = '';
 
-            let totalCells = 35; // 5 rows x 7 days
+            let totalCells = 35;
             if (firstDay + daysInMonth > 35) totalCells = 42;
 
             for (let i = 0; i < totalCells; i++) {
@@ -689,7 +720,6 @@
                 const dateStr = `${cellYear}-${String(cellMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
                 const isToday = dateStr === todayStr;
 
-                // ดึงรายการกู้ที่ครบกำหนดวันนี้นี้
                 const dayEvents = window.loans.filter(l => getNextDueDateString(l.startDate) === dateStr);
 
                 let eventsHtml = '';
@@ -754,12 +784,12 @@
             document.getElementById('calModalStatusBadge').innerHTML = badgeHtml;
 
             document.getElementById('calMarkPaidBtn').onclick = function() {
-                updateStatus(props.id, 'paid');
+                confirmUpdateStatus(props.id, 'paid');
                 closeCalModal();
             };
 
             document.getElementById('calMarkUnpaidBtn').onclick = function() {
-                updateStatus(props.id, 'unpaid');
+                confirmUpdateStatus(props.id, 'unpaid');
                 closeCalModal();
             };
 
@@ -791,7 +821,7 @@
                         <td class="p-4 text-slate-500">${formatDateThai(item.startDate)}</td>
                         <td class="p-4 font-medium text-slate-600">${formatDateThai(dueDateStr)}</td>
                         <td class="p-4">
-                            <select onchange="updateStatus(${item.id}, this.value)" class="border text-xs rounded-lg p-1.5 outline-none font-medium ${getStatusSelectBg(item.status)}">
+                            <select onchange="confirmUpdateStatus(${item.id}, this.value)" class="border text-xs rounded-lg p-1.5 outline-none font-medium ${getStatusSelectBg(item.status)}">
                                 <option value="unpaid" ${item.status === 'unpaid' ? 'selected' : ''}>🟡 รอชำระ</option>
                                 <option value="paid" ${item.status === 'paid' ? 'selected' : ''}>🟢 จ่ายแล้ว</option>
                                 <option value="overdue" ${item.status === 'overdue' ? 'selected' : ''}>🔴 จ่ายช้า/ค้างชำระ</option>
@@ -813,7 +843,7 @@
                                 <div class="font-bold text-slate-800 text-sm">${item.name}</div>
                                 <div class="text-xs text-slate-500">โทร: ${item.phone}</div>
                             </div>
-                            <select onchange="updateStatus(${item.id}, this.value)" class="border text-xs rounded-lg p-1 outline-none font-medium ${getStatusSelectBg(item.status)}">
+                            <select onchange="confirmUpdateStatus(${item.id}, this.value)" class="border text-xs rounded-lg p-1 outline-none font-medium ${getStatusSelectBg(item.status)}">
                                 <option value="unpaid" ${item.status === 'unpaid' ? 'selected' : ''}>🟡 รอชำระ</option>
                                 <option value="paid" ${item.status === 'paid' ? 'selected' : ''}>🟢 จ่ายแล้ว</option>
                                 <option value="overdue" ${item.status === 'overdue' ? 'selected' : ''}>🔴 ค้างชำระ</option>
