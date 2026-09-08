@@ -8,8 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- FullCalendar Library -->
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     
     <!-- Flatpickr -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -36,20 +34,19 @@
             .active-tab { border-left: 4px solid #0d9488; }
         }
 
-        /* Google Calendar Custom Style Overrides */
-        .fc { font-family: 'Sarabun', sans-serif; height: 100%; }
-        .fc-toolbar { padding: 8px 12px; margin-bottom: 4px !important; }
-        .fc-toolbar-title { font-size: 1.1rem !important; font-weight: 700; color: #1e293b; }
-        .fc-button-primary { background-color: #0d9488 !important; border-color: #0d9488 !important; border-radius: 10px !important; }
-        .fc-button-primary:hover { background-color: #0f766e !important; }
-        .fc-theme-standard td, .fc-theme-standard th { border-color: #f1f5f9 !important; }
-        .fc-col-header-cell { padding: 6px 0 !important; font-size: 0.75rem; color: #64748b; font-weight: 600; }
-        .fc-daygrid-day-number { font-size: 0.8rem; font-weight: 600; color: #334155; padding: 4px 6px !important; }
-        .fc-day-today { background-color: #f0fdf4 !important; }
-        .fc-day-today .fc-daygrid-day-number { background-color: #10b981; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; items-center; justify-content: center; }
-        .fc-daygrid-event { border-radius: 6px !important; padding: 2px 4px !important; font-size: 0.7rem !important; font-weight: 500; margin-top: 2px !important; border: none !important; }
-        .fc-daygrid-day-events { min-height: 2em !important; }
-        .fc-scroller { -webkit-overflow-scrolling: touch; }
+        /* Custom Scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Google Calendar Custom Grid Style */
+        .gcal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            height: calc(100vh - 180px);
+        }
+        @media (min-width: 768px) {
+            .gcal-grid { height: calc(100vh - 200px); }
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen pb-20 md:pb-0 md:pl-64">
@@ -105,7 +102,7 @@
     </aside>
 
     <!-- Top Navigation Bar (สำหรับ มือถือ) -->
-    <div class="md:hidden bg-white border-b border-slate-200 p-3 sticky top-0 z-20 flex justify-between items-center shadow-sm">
+    <div class="md:hidden bg-white border-b border-slate-200 p-3 sticky top-0 z-20 flex justify-between items-center shadow-sm" id="topMobileNav">
         <div class="flex items-center gap-2">
             <div class="w-8 h-8 bg-slate-800 text-teal-400 rounded-full flex items-center justify-center text-sm font-bold">
                 <i class="fa-solid fa-wallet"></i>
@@ -122,7 +119,7 @@
     </div>
 
     <!-- Bottom Navigation Bar (สำหรับ มือถือ) -->
-    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-1.5 flex justify-around items-center z-30 shadow-lg">
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-1.5 flex justify-around items-center z-30 shadow-lg" id="bottomMobileNav">
         <button onclick="switchTab('dashboard')" id="mob-nav-dashboard" class="flex flex-col items-center gap-1 p-2 text-teal-600 font-semibold">
             <i class="fa-solid fa-border-all text-lg"></i>
             <span class="text-[10px]">ภาพรวม</span>
@@ -142,7 +139,7 @@
     </div>
 
     <!-- Main Content Area -->
-    <main class="p-3 md:p-8 max-w-7xl mx-auto">
+    <main class="p-2 md:p-8 max-w-7xl mx-auto">
         
         <!-- PAGE 1: ภาพรวม -->
         <section id="page-dashboard" class="space-y-4 md:space-y-6">
@@ -231,40 +228,35 @@
             </div>
         </section>
 
-        <!-- PAGE 2: ปฏิทินรับชำระ (GOOGLE CALENDAR STYLE) -->
-        <section id="page-calendar" class="space-y-3 hidden">
-            <!-- Header ปฏิทิน + แท็บสไลด์เดือน -->
-            <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                <div class="flex justify-between items-center">
-                    <h1 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-calendar-days text-teal-600"></i> กำหนดชำระเงิน
-                    </h1>
-                    <div class="flex items-center gap-2 text-[11px] font-medium">
-                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> จ่ายแล้ว</span>
-                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> รอชำระ</span>
-                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> ค้างชำระ</span>
-                    </div>
+        <!-- PAGE 2: ปฏิทินรับชำระ (GOOGLE CALENDAR DARK NATIVE) -->
+        <section id="page-calendar" class="hidden -m-2 md:m-0 bg-[#121316] text-slate-200 min-h-screen md:min-h-0 md:rounded-2xl overflow-hidden p-3 relative">
+            <!-- Header ปฏิทินแบบ Google Calendar -->
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <button onclick="switchTab('dashboard')" class="md:hidden text-slate-400 p-1"><i class="fa-solid fa-bars text-lg"></i></button>
+                    <h1 class="text-lg font-bold text-white flex items-center gap-2" id="gcalTitle">กันยายน 2569</h1>
                 </div>
-
-                <!-- Month Pills (สไลด์เลือกเดือน) -->
-                <div class="flex gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar" id="monthPills">
-                    <button onclick="changeMonthOffset(-2)" class="px-3 py-1 bg-slate-100 rounded-full text-slate-600 whitespace-nowrap font-medium" id="pillPrev2"></button>
-                    <button onclick="changeMonthOffset(-1)" class="px-3 py-1 bg-slate-100 rounded-full text-slate-600 whitespace-nowrap font-medium" id="pillPrev1"></button>
-                    <button onclick="changeMonthOffset(0)" class="px-3.5 py-1 bg-teal-600 text-white rounded-full whitespace-nowrap font-bold shadow-sm" id="pillCurrent"></button>
-                    <button onclick="changeMonthOffset(1)" class="px-3 py-1 bg-slate-100 rounded-full text-slate-600 whitespace-nowrap font-medium" id="pillNext1"></button>
-                    <button onclick="changeMonthOffset(2)" class="px-3 py-1 bg-slate-100 rounded-full text-slate-600 whitespace-nowrap font-medium" id="pillNext2"></button>
+                <div class="flex items-center gap-3 text-slate-300">
+                    <button onclick="prevMonth()" class="p-1 hover:text-white"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button onclick="nextMonth()" class="p-1 hover:text-white"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
             </div>
 
-            <!-- ตัวปฏิทินเต็มจอ -->
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-2 min-h-[72vh] relative">
-                <div id="calendarEl" class="h-full"></div>
+            <!-- Month Pills สไลด์เลือกเดือน -->
+            <div class="flex gap-2 overflow-x-auto py-2.5 no-scrollbar text-xs border-b border-slate-800/60" id="gcalMonthPills"></div>
 
-                <!-- Floating Plus Button -->
-                <button onclick="openModal()" class="fixed bottom-20 right-5 md:bottom-8 md:right-8 w-13 h-13 bg-teal-600 text-white rounded-full flex items-center justify-center text-xl shadow-lg hover:bg-teal-700 transition z-20">
-                    <i class="fa-solid fa-plus"></i>
-                </button>
+            <!-- Header ชื่อวัน (อา - ส) -->
+            <div class="grid grid-cols-7 text-center text-[11px] font-semibold text-slate-400 py-2 border-b border-slate-800/40">
+                <div>อา</div><div>จ</div><div>อ</div><div>พ</div><div>พฤ</div><div>ศ</div><div>ส</div>
             </div>
+
+            <!-- Grid ตารางวันที่เต็มจอ -->
+            <div class="gcal-grid border-b border-slate-800/40" id="gcalGrid"></div>
+
+            <!-- ปุ่มลอย + สีน้ำเงิน Google Calendar Style -->
+            <button onclick="openModal()" class="fixed bottom-20 right-5 md:bottom-8 md:right-8 w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-xl hover:bg-blue-500 transition z-20">
+                <i class="fa-solid fa-plus"></i>
+            </button>
         </section>
 
         <!-- PAGE 3: การจัดการสัญญา -->
@@ -350,7 +342,7 @@
     </div>
 
     <!-- Modal ปฏิทิน Mark as Paid -->
-    <div id="calendarDetailModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
+    <div id="calendarDetailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
         <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-3">
             <div class="flex justify-between items-center border-b pb-2">
                 <h3 class="text-base font-bold text-slate-800">รายละเอียดกำหนดชำระ</h3>
@@ -392,7 +384,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // รหัส Firebase ของคุณที่นำมาจากหน้าจอ
         const firebaseConfig = {
             apiKey: "AIzaSyBzLniWgvspGh4X1-TuaPyJwDQ80VWUjo4",
             authDomain: "loanflow-b66bf.firebaseapp.com",
@@ -428,8 +419,11 @@
     <!-- Main Logic Script -->
     <script>
         let statusChart = null;
-        let calendar = null;
         let datePicker = null;
+        let currentCalDate = new Date(); // วันปัจจุบันสำหรับ Google Calendar
+
+        const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+        const thaiMonthsShort = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
         function formatCurrencyInput(input) {
             let value = input.value.replace(/,/g, '');
@@ -497,7 +491,10 @@
             }
 
             if (tabName === 'calendar') {
-                renderCalendar();
+                document.getElementById('topMobileNav').classList.add('hidden');
+                renderNativeCalendar();
+            } else {
+                document.getElementById('topMobileNav').classList.remove('hidden');
             }
         }
 
@@ -516,6 +513,9 @@
             renderDashboard();
             renderLoansTable();
             renderCustomers();
+            if(!document.getElementById('page-calendar').classList.contains('hidden')) {
+                renderNativeCalendar();
+            }
         }
 
         function renderDashboard() {
@@ -630,70 +630,115 @@
             });
         }
 
-        function renderCalendar() {
-            const calendarEl = document.getElementById('calendarEl');
-            
-            const events = window.loans.map(item => {
-                const rate = item.interestRate !== undefined ? item.interestRate : 10;
-                const interest = item.amount * (rate / 100);
-                const dueDateStr = getNextDueDateString(item.startDate);
+        /* GOOGLE CALENDAR NATIVE ENGINE */
+        function renderNativeCalendar() {
+            const year = currentCalDate.getFullYear();
+            const month = currentCalDate.getMonth();
+
+            document.getElementById('gcalTitle').innerText = `${thaiMonths[month]} ${year + 543}`;
+
+            // Month Pills
+            const pillsEl = document.getElementById('gcalMonthPills');
+            pillsEl.innerHTML = '';
+            for (let i = -2; i <= 3; i++) {
+                const targetDate = new Date(year, month + i, 1);
+                const mIdx = targetDate.getMonth();
+                const yVal = targetDate.getFullYear() + 543;
+                const isCurrent = i === 0;
                 
-                let color = '#f59e0b';
-                if (item.status === 'paid') color = '#10b981';
-                if (item.status === 'overdue') color = '#f43f5e';
-
-                return {
-                    id: item.id,
-                    title: `✓ ${item.name} (${(interest/1000).toFixed(0)}k)`,
-                    start: dueDateStr,
-                    backgroundColor: color,
-                    borderColor: color,
-                    extendedProps: { id: item.id, name: item.name, amount: item.amount, rate: rate, interest: interest, status: item.status }
-                };
-            });
-
-            if (calendar) calendar.destroy();
-
-            calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                locale: 'th',
-                headerToolbar: false,
-                dayMaxEvents: 2,
-                events: events,
-                datesSet: function(info) {
-                    updateMonthPills(info.view.currentStart);
-                },
-                eventClick: function(info) {
-                    openCalModal(info.event.extendedProps);
-                }
-            });
-
-            calendar.render();
-        }
-
-        function updateMonthPills(currentDate) {
-            const thaiMonths = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-            
-            const getMonthLabel = (offset) => {
-                const d = new Date(currentDate);
-                d.setMonth(d.getMonth() + offset);
-                return `${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
-            };
-
-            document.getElementById('pillPrev2').innerText = getMonthLabel(-2);
-            document.getElementById('pillPrev1').innerText = getMonthLabel(-1);
-            document.getElementById('pillCurrent').innerText = getMonthLabel(0);
-            document.getElementById('pillNext1').innerText = getMonthLabel(1);
-            document.getElementById('pillNext2').innerText = getMonthLabel(2);
-        }
-
-        function changeMonthOffset(offset) {
-            if (calendar) {
-                if (offset === -1) calendar.prev();
-                else if (offset === 1) calendar.next();
-                else if (offset === -2) { calendar.prev(); calendar.prev(); }
-                else if (offset === 2) { calendar.next(); calendar.next(); }
+                pillsEl.innerHTML += `
+                    <button onclick="setCalMonth(${i})" class="px-3.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition ${isCurrent ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 border border-slate-700'}">
+                        ${thaiMonthsShort[mIdx]} ${yVal}
+                    </button>
+                `;
             }
+
+            // Grid Calculations
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            const gridEl = document.getElementById('gcalGrid');
+            gridEl.innerHTML = '';
+
+            let totalCells = 35; // 5 rows x 7 days
+            if (firstDay + daysInMonth > 35) totalCells = 42;
+
+            for (let i = 0; i < totalCells; i++) {
+                let dayNum, cellMonth, cellYear, isOtherMonth = false;
+
+                if (i < firstDay) {
+                    dayNum = daysInPrevMonth - firstDay + i + 1;
+                    const prevD = new Date(year, month - 1, dayNum);
+                    cellMonth = prevD.getMonth();
+                    cellYear = prevD.getFullYear();
+                    isOtherMonth = true;
+                } else if (i >= firstDay + daysInMonth) {
+                    dayNum = i - firstDay - daysInMonth + 1;
+                    const nextD = new Date(year, month + 1, dayNum);
+                    cellMonth = nextD.getMonth();
+                    cellYear = nextD.getFullYear();
+                    isOtherMonth = true;
+                } else {
+                    dayNum = i - firstDay + 1;
+                    cellMonth = month;
+                    cellYear = year;
+                }
+
+                const dateStr = `${cellYear}-${String(cellMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                const isToday = dateStr === todayStr;
+
+                // ดึงรายการกู้ที่ครบกำหนดวันนี้นี้
+                const dayEvents = window.loans.filter(l => getNextDueDateString(l.startDate) === dateStr);
+
+                let eventsHtml = '';
+                dayEvents.forEach(item => {
+                    const rate = item.interestRate !== undefined ? item.interestRate : 10;
+                    const interest = item.amount * (rate / 100);
+                    
+                    let bgClass = 'bg-indigo-600/80 text-indigo-100';
+                    if (item.status === 'paid') bgClass = 'bg-emerald-600/80 text-emerald-100';
+                    if (item.status === 'overdue') bgClass = 'bg-rose-600/80 text-rose-100';
+
+                    eventsHtml += `
+                        <div onclick="event.stopPropagation(); openCalModalFromItem(${item.id})" class="text-[9px] ${bgClass} px-1.5 py-0.5 rounded font-medium truncate mb-1 cursor-pointer">
+                            ✓ ${(interest/1000).toFixed(0)}k ${item.name}
+                        </div>
+                    `;
+                });
+
+                gridEl.innerHTML += `
+                    <div class="border-r border-b border-slate-800/40 p-1 flex flex-col justify-between overflow-hidden ${isOtherMonth ? 'opacity-30' : ''}">
+                        <div class="flex justify-start">
+                            <span class="text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center ${isToday ? 'bg-blue-600 text-white' : 'text-slate-300'}">
+                                ${dayNum}
+                            </span>
+                        </div>
+                        <div class="mt-1 flex-1 overflow-y-auto no-scrollbar">
+                            ${eventsHtml}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function setCalMonth(offset) {
+            currentCalDate.setMonth(currentCalDate.getMonth() + offset);
+            renderNativeCalendar();
+        }
+
+        function prevMonth() { setCalMonth(-1); }
+        function nextMonth() { setCalMonth(1); }
+
+        function openCalModalFromItem(id) {
+            const item = window.loans.find(l => l.id === id);
+            if (!item) return;
+
+            const rate = item.interestRate !== undefined ? item.interestRate : 10;
+            const interest = item.amount * (rate / 100);
+
+            openCalModal({ id: item.id, name: item.name, amount: item.amount, rate: rate, interest: interest, status: item.status });
         }
 
         function openCalModal(props) {
