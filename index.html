@@ -233,9 +233,15 @@
                     <button onclick="switchTab('dashboard')" class="md:hidden text-slate-400 p-1"><i class="fa-solid fa-bars text-lg"></i></button>
                     <h1 class="text-lg font-bold text-white flex items-center gap-2" id="gcalTitle">กันยายน 2569</h1>
                 </div>
-                <div class="flex items-center gap-3 text-slate-300">
-                    <button onclick="prevMonth()" class="p-1 hover:text-white"><i class="fa-solid fa-chevron-left"></i></button>
-                    <button onclick="nextMonth()" class="p-1 hover:text-white"><i class="fa-solid fa-chevron-right"></i></button>
+                <div class="flex items-center gap-2 text-slate-300">
+                    <!-- ปุ่มวันนี้ (Jump to Today) -->
+                    <button onclick="jumpToToday()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1 text-slate-200">
+                        <i class="fa-solid fa-calendar-day text-blue-400"></i> วันนี้
+                    </button>
+                    <div class="flex items-center gap-1 ml-1">
+                        <button onclick="prevMonth()" class="p-1 hover:text-white"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button onclick="nextMonth()" class="p-1 hover:text-white"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
                 </div>
             </div>
 
@@ -435,7 +441,7 @@
         let statusChart = null;
         let datePicker = null;
         let currentCalDate = new Date();
-        let pendingAction = null; // เก็บข้อมูลชั่วคราวสำหรับยืนยันการจ่ายเงินรายงวด
+        let pendingAction = null;
 
         const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
         const thaiMonthsShort = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -456,7 +462,6 @@
             return `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
 
-        // คำนวณวันครบกำหนดงวดถัดไป (คงเดิมไว้ใช้หน้า Loan Table)
         function getNextDueDateString(startDateStr) {
             const start = new Date(startDateStr);
             const today = new Date();
@@ -467,16 +472,14 @@
             return due.toISOString().split('T')[0];
         }
 
-        // สร้างรายการ dueDate ทั้งหมดในอนาคต (รายเดือนต่อเนื่องไปเรื่อยๆ)
         function getLoanDueDates(startDateStr) {
             let dates = [];
             let start = new Date(startDateStr);
             let currentDate = new Date();
             let limitDate = new Date();
-            limitDate.setFullYear(currentDate.getFullYear() + 2); // สร้างล่วงหน้า 2 ปี
+            limitDate.setFullYear(currentDate.getFullYear() + 2);
 
             let currentDue = new Date(start);
-            // สร้างย้อนหลังตั้งแต่เริ่มสัญญาจนถึง 2 ปีข้างหน้า เพื่อให้ครอบคลุมทุกเดือน
             currentDue.setMonth(currentDue.getMonth() + 1);
 
             while (currentDue <= limitDate) {
@@ -493,13 +496,6 @@
 
             window.loans.forEach(item => {
                 if (!item.paidDates) item.paidDates = [];
-                const dues = getLoanDueDates(item.startDate);
-                
-                dues.forEach(dStr => {
-                    if (todayStr >= dStr && !item.paidDates.includes(dStr) && item.status !== 'overdue') {
-                        // ถ้าถึงกำหนดแล้วยังไม่จ่าย ให้ปรับสถานะภาพรวมเป็น overdue ได้
-                    }
-                });
             });
         }
 
@@ -747,7 +743,6 @@
                 const dateStr = `${cellYear}-${String(cellMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
                 const isToday = dateStr === todayStr;
 
-                // หารายการทั้งหมดที่ครบกำหนดในวันนี้ (เช็กจากลูปรายเดือนของทุกสัญญา)
                 let dayEvents = [];
                 window.loans.forEach(item => {
                     const dues = getLoanDueDates(item.startDate);
@@ -762,7 +757,6 @@
                     const rate = item.interestRate !== undefined ? item.interestRate : 10;
                     const interest = item.amount * (rate / 100);
                     
-                    // เช็กสถานะการจ่ายเฉพาะงวดนี้
                     const isPaidForThisDate = item.paidDates && item.paidDates.includes(entry.dueDate);
 
                     let bgClass = 'bg-indigo-600/80 text-indigo-100';
@@ -801,6 +795,12 @@
 
         function prevMonth() { setCalMonth(-1); }
         function nextMonth() { setCalMonth(1); }
+
+        // ฟังก์ชันกระโดดไปวันที่ปัจจุบัน
+        function jumpToToday() {
+            currentCalDate = new Date();
+            renderNativeCalendar();
+        }
 
         function openCalModalFromItem(id, dueDateStr) {
             const item = window.loans.find(l => l.id === id);
@@ -850,7 +850,6 @@
             document.getElementById('calendarDetailModal').classList.add('hidden');
         }
 
-        // ฟังก์ชันบันทึกการจ่ายเงินแยกตามรายเดือน (Recurring Payment)
         function markMonthlyPaid(id, dueDateStr, isPaid) {
             const loan = window.loans.find(l => l.id === id);
             if (!loan) return;
@@ -1039,7 +1038,7 @@
                     interestRate: parsedRate,
                     startDate: selectedDate,
                     status: 'unpaid',
-                    paidDates: [] // เก็บประวัติการจ่ายรายเดือน
+                    paidDates: []
                 });
             }
 
