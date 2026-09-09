@@ -356,6 +356,10 @@
                     <span class="font-bold text-teal-600" id="calModalInterest">-</span>
                 </div>
                 <div class="flex justify-between py-1 border-b">
+                    <span class="text-slate-500">กำหนดชำระงวดนี้:</span>
+                    <span class="font-bold text-slate-700" id="calModalDueDate">-</span>
+                </div>
+                <div class="flex justify-between py-1 border-b">
                     <span class="text-slate-500">สถานะปัจจุบัน:</span>
                     <span id="calModalStatusBadge">-</span>
                 </div>
@@ -372,7 +376,7 @@
         </div>
     </div>
 
-    <!-- Modal ยืนยันการชำระเงิน (Confirm Payment Modal) -->
+    <!-- Modal ยืนยันการชำระเงิน -->
     <div id="confirmPaidModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex justify-center items-center z-50 p-4">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
             <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mx-auto">
@@ -380,7 +384,7 @@
             </div>
             <div>
                 <h3 class="text-base font-bold text-slate-800">ยืนยันการรับชำระเงิน</h3>
-                <p class="text-xs text-slate-500 mt-1">คุณต้องการบันทึกว่า <span id="confirmBorrowerName" class="font-bold text-slate-700"></span> ชำระเงินแล้วใช่หรือไม่?</p>
+                <p class="text-xs text-slate-500 mt-1">คุณต้องการบันทึกว่า <span id="confirmBorrowerName" class="font-bold text-slate-700"></span> ชำระเงินงวดนี้แล้วใช่หรือไม่?</p>
             </div>
             <div class="flex gap-2 pt-2">
                 <button type="button" onclick="closeConfirmModal()" class="w-1/2 bg-slate-100 text-slate-600 py-2.5 rounded-xl text-sm font-medium">ยกเลิก</button>
@@ -431,7 +435,7 @@
         let statusChart = null;
         let datePicker = null;
         let currentCalDate = new Date();
-        let pendingPaidId = null; // ตัวแปรเก็บ ID ที่รอการยืนยัน
+        let pendingAction = null; // เก็บข้อมูลชั่วคราวสำหรับยืนยันการจ่ายเงินรายงวด
 
         const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
         const thaiMonthsShort = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -452,11 +456,35 @@
             return `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
 
+        // คำนวณวันครบกำหนดงวดถัดไป (คงเดิมไว้ใช้หน้า Loan Table)
         function getNextDueDateString(startDateStr) {
             const start = new Date(startDateStr);
-            const nextDue = new Date(start);
-            nextDue.setMonth(nextDue.getMonth() + 1);
-            return nextDue.toISOString().split('T')[0];
+            const today = new Date();
+            let due = new Date(start);
+            while (due <= today) {
+                due.setMonth(due.getMonth() + 1);
+            }
+            return due.toISOString().split('T')[0];
+        }
+
+        // สร้างรายการ dueDate ทั้งหมดในอนาคต (รายเดือนต่อเนื่องไปเรื่อยๆ)
+        function getLoanDueDates(startDateStr) {
+            let dates = [];
+            let start = new Date(startDateStr);
+            let currentDate = new Date();
+            let limitDate = new Date();
+            limitDate.setFullYear(currentDate.getFullYear() + 2); // สร้างล่วงหน้า 2 ปี
+
+            let currentDue = new Date(start);
+            // สร้างย้อนหลังตั้งแต่เริ่มสัญญาจนถึง 2 ปีข้างหน้า เพื่อให้ครอบคลุมทุกเดือน
+            currentDue.setMonth(currentDue.getMonth() + 1);
+
+            while (currentDue <= limitDate) {
+                dates.push(currentDue.toISOString().split('T')[0]);
+                currentDue = new Date(currentDue);
+                currentDue.setMonth(currentDue.getMonth() + 1);
+            }
+            return dates;
         }
 
         function checkAutoOverdue() {
@@ -464,16 +492,15 @@
             let isUpdated = false;
 
             window.loans.forEach(item => {
-                const dueDateStr = getNextDueDateString(item.startDate);
-                if (todayStr >= dueDateStr && item.status === 'unpaid') {
-                    item.status = 'overdue';
-                    isUpdated = true;
-                }
+                if (!item.paidDates) item.paidDates = [];
+                const dues = getLoanDueDates(item.startDate);
+                
+                dues.forEach(dStr => {
+                    if (todayStr >= dStr && !item.paidDates.includes(dStr) && item.status !== 'overdue') {
+                        // ถ้าถึงกำหนดแล้วยังไม่จ่าย ให้ปรับสถานะภาพรวมเป็น overdue ได้
+                    }
+                });
             });
-
-            if (isUpdated && window.saveDataToFirebase) {
-                window.saveDataToFirebase();
-            }
         }
 
         function switchTab(tabName) {
@@ -618,17 +645,16 @@
             });
         }
 
-        // ฟังก์ชันเปิดหน้าต่างยืนยันการจ่ายเงิน
         function confirmUpdateStatus(id, newStatus) {
             if (newStatus === 'paid') {
                 const loan = window.loans.find(l => l.id === id);
                 if (!loan) return;
-                pendingPaidId = id;
+                pendingAction = { id: id, status: 'paid' };
                 document.getElementById('confirmBorrowerName').innerText = loan.name;
                 document.getElementById('confirmPaidModal').classList.remove('hidden');
                 
                 document.getElementById('confirmPaidYesBtn').onclick = function() {
-                    updateStatus(pendingPaidId, 'paid');
+                    updateStatus(pendingAction.id, 'paid');
                     closeConfirmModal();
                 };
             } else {
@@ -638,7 +664,7 @@
 
         function closeConfirmModal() {
             document.getElementById('confirmPaidModal').classList.add('hidden');
-            pendingPaidId = null;
+            pendingAction = null;
         }
 
         function getStatusBadgeHtml(status) {
@@ -664,6 +690,7 @@
             });
         }
 
+        /* GOOGLE CALENDAR NATIVE ENGINE (RECURRING MONTHLY) */
         function renderNativeCalendar() {
             const year = currentCalDate.getFullYear();
             const month = currentCalDate.getMonth();
@@ -720,20 +747,34 @@
                 const dateStr = `${cellYear}-${String(cellMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
                 const isToday = dateStr === todayStr;
 
-                const dayEvents = window.loans.filter(l => getNextDueDateString(l.startDate) === dateStr);
+                // หารายการทั้งหมดที่ครบกำหนดในวันนี้ (เช็กจากลูปรายเดือนของทุกสัญญา)
+                let dayEvents = [];
+                window.loans.forEach(item => {
+                    const dues = getLoanDueDates(item.startDate);
+                    if (dues.includes(dateStr)) {
+                        dayEvents.push({ loan: item, dueDate: dateStr });
+                    }
+                });
 
                 let eventsHtml = '';
-                dayEvents.forEach(item => {
+                dayEvents.forEach(entry => {
+                    const item = entry.loan;
                     const rate = item.interestRate !== undefined ? item.interestRate : 10;
                     const interest = item.amount * (rate / 100);
                     
+                    // เช็กสถานะการจ่ายเฉพาะงวดนี้
+                    const isPaidForThisDate = item.paidDates && item.paidDates.includes(entry.dueDate);
+
                     let bgClass = 'bg-indigo-600/80 text-indigo-100';
-                    if (item.status === 'paid') bgClass = 'bg-emerald-600/80 text-emerald-100';
-                    if (item.status === 'overdue') bgClass = 'bg-rose-600/80 text-rose-100';
+                    let checkIcon = '';
+                    if (isPaidForThisDate) {
+                        bgClass = 'bg-emerald-600/80 text-emerald-100';
+                        checkIcon = '✓ ';
+                    }
 
                     eventsHtml += `
-                        <div onclick="event.stopPropagation(); openCalModalFromItem(${item.id})" class="text-[9px] ${bgClass} px-1.5 py-0.5 rounded font-medium truncate mb-1 cursor-pointer">
-                            ✓ ${(interest/1000).toFixed(0)}k ${item.name}
+                        <div onclick="event.stopPropagation(); openCalModalFromItem(${item.id}, '${entry.dueDate}')" class="text-[9px] ${bgClass} px-1.5 py-0.5 rounded font-medium truncate mb-1 cursor-pointer">
+                            ${checkIcon}${(interest/1000).toFixed(0)}k ${item.name}
                         </div>
                     `;
                 });
@@ -761,35 +802,44 @@
         function prevMonth() { setCalMonth(-1); }
         function nextMonth() { setCalMonth(1); }
 
-        function openCalModalFromItem(id) {
+        function openCalModalFromItem(id, dueDateStr) {
             const item = window.loans.find(l => l.id === id);
             if (!item) return;
 
             const rate = item.interestRate !== undefined ? item.interestRate : 10;
             const interest = item.amount * (rate / 100);
+            const isPaid = item.paidDates && item.paidDates.includes(dueDateStr);
 
-            openCalModal({ id: item.id, name: item.name, amount: item.amount, rate: rate, interest: interest, status: item.status });
+            openCalModal({ 
+                id: item.id, 
+                name: item.name, 
+                amount: item.amount, 
+                rate: rate, 
+                interest: interest, 
+                dueDate: dueDateStr,
+                isPaid: isPaid 
+            });
         }
 
         function openCalModal(props) {
             document.getElementById('calModalName').innerText = props.name;
             document.getElementById('calModalAmount').innerText = `฿${props.amount.toLocaleString()}`;
             document.getElementById('calModalInterest').innerText = `฿${props.interest.toLocaleString()} (${props.rate}%)`;
+            document.getElementById('calModalDueDate').innerText = formatDateThai(props.dueDate);
             
-            let badgeHtml = '';
-            if (props.status === 'paid') badgeHtml = `<span class="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700 font-semibold">🟢 จ่ายแล้ว</span>`;
-            else if (props.status === 'unpaid') badgeHtml = `<span class="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 font-semibold">🟡 รอชำระ</span>`;
-            else badgeHtml = `<span class="px-2 py-0.5 rounded text-xs bg-rose-100 text-rose-700 font-semibold">🔴 ค้างชำระ</span>`;
+            let badgeHtml = props.isPaid 
+                ? `<span class="px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-700 font-semibold">🟢 จ่ายแล้วงวดนี้</span>`
+                : `<span class="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 font-semibold">🟡 รอชำระงวดนี้</span>`;
 
             document.getElementById('calModalStatusBadge').innerHTML = badgeHtml;
 
             document.getElementById('calMarkPaidBtn').onclick = function() {
-                confirmUpdateStatus(props.id, 'paid');
+                markMonthlyPaid(props.id, props.dueDate, true);
                 closeCalModal();
             };
 
             document.getElementById('calMarkUnpaidBtn').onclick = function() {
-                confirmUpdateStatus(props.id, 'unpaid');
+                markMonthlyPaid(props.id, props.dueDate, false);
                 closeCalModal();
             };
 
@@ -798,6 +848,28 @@
 
         function closeCalModal() {
             document.getElementById('calendarDetailModal').classList.add('hidden');
+        }
+
+        // ฟังก์ชันบันทึกการจ่ายเงินแยกตามรายเดือน (Recurring Payment)
+        function markMonthlyPaid(id, dueDateStr, isPaid) {
+            const loan = window.loans.find(l => l.id === id);
+            if (!loan) return;
+
+            if (!loan.paidDates) loan.paidDates = [];
+
+            if (isPaid) {
+                if (!loan.paidDates.includes(dueDateStr)) {
+                    loan.paidDates.push(dueDateStr);
+                }
+            } else {
+                loan.paidDates = loan.paidDates.filter(d => d !== dueDateStr);
+            }
+
+            if (window.saveDataToFirebase) {
+                window.saveDataToFirebase();
+            }
+            renderNativeCalendar();
+            renderDashboard();
         }
 
         function renderLoansTable() {
@@ -966,7 +1038,8 @@
                     amount: parsedAmount,
                     interestRate: parsedRate,
                     startDate: selectedDate,
-                    status: 'unpaid'
+                    status: 'unpaid',
+                    paidDates: [] // เก็บประวัติการจ่ายรายเดือน
                 });
             }
 
