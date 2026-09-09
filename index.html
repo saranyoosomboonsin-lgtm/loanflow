@@ -234,7 +234,6 @@
                     <h1 class="text-lg font-bold text-white flex items-center gap-2" id="gcalTitle">กันยายน 2569</h1>
                 </div>
                 <div class="flex items-center gap-2 text-slate-300">
-                    <!-- ปุ่มวันนี้ (Jump to Today) -->
                     <button onclick="jumpToToday()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1 text-slate-200">
                         <i class="fa-solid fa-calendar-day text-blue-400"></i> วันนี้
                     </button>
@@ -258,30 +257,46 @@
             </button>
         </section>
 
-        <!-- PAGE 3: การจัดการสัญญา -->
+        <!-- PAGE 3: การจัดการสัญญา (พร้อมระบบ Search & Sorting แบบ Google Sheets) -->
         <section id="page-loans" class="space-y-4 md:space-y-6 hidden">
-            <div class="flex justify-between items-center">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div>
                     <h1 class="text-xl md:text-2xl font-bold text-slate-800">จัดการสัญญากู้ยืม</h1>
-                    <p class="text-xs md:text-sm text-slate-500">อัปเดตสถานะ หรือ แก้ไขสัญญากู้</p>
+                    <p class="text-xs md:text-sm text-slate-500">ค้นหา กรอง และเรียบเรียงข้อมูลสัญญากู้</p>
                 </div>
-                <button onclick="openModal()" class="bg-teal-600 text-white px-3 py-2 rounded-xl text-xs md:text-sm font-medium shadow-sm">
+                <button onclick="openModal()" class="bg-teal-600 text-white px-3 py-2 rounded-xl text-xs md:text-sm font-medium shadow-sm flex items-center gap-2">
                     <i class="fa-solid fa-plus"></i> เพิ่มสัญญา
                 </button>
+            </div>
+
+            <!-- Google Sheets Style Search & Filter Bar -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3 justify-between items-center">
+                <div class="relative w-full md:w-80">
+                    <i class="fa-solid fa-search absolute left-3 top-3 text-slate-400 text-sm"></i>
+                    <input type="text" id="searchInput" oninput="filterAndRenderLoans()" placeholder="ค้นหาชื่อลูกหนี้ หรือเบอร์โทร..." class="w-full pl-9 pr-4 py-2 border rounded-xl text-xs md:text-sm outline-none focus:border-teal-500 bg-slate-50">
+                </div>
+                
+                <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
+                    <span class="text-xs font-semibold text-slate-400 mr-1">สถานะ:</span>
+                    <button onclick="setStatusFilter('all')" id="filter-btn-all" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-teal-600 text-white transition">ทั้งหมด</button>
+                    <button onclick="setStatusFilter('unpaid')" id="filter-btn-unpaid" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">รอชำระ</button>
+                    <button onclick="setStatusFilter('paid')" id="filter-btn-paid" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">จ่ายแล้ว</button>
+                    <button onclick="setStatusFilter('overdue')" id="filter-btn-overdue" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition">ค้างชำระ</button>
+                </div>
             </div>
 
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="hidden md:block overflow-x-auto">
                     <table class="w-full text-left text-sm">
-                        <thead class="bg-slate-50 text-slate-600 border-b">
+                        <thead class="bg-slate-50 text-slate-600 border-b select-none">
                             <tr>
-                                <th class="p-4">ชื่อลูกหนี้</th>
-                                <th class="p-4">เงินต้น</th>
-                                <th class="p-4">อัตราดอกเบี้ย</th>
-                                <th class="p-4">ดอกเบี้ย/เดือน</th>
-                                <th class="p-4">วันที่เริ่มกู้</th>
+                                <th class="p-4 cursor-pointer hover:bg-slate-100" onclick="sortLoans('name')">ชื่อลูกหนี้ <i class="fa-solid fa-sort text-slate-400 text-xs ml-1"></i></th>
+                                <th class="p-4 cursor-pointer hover:bg-slate-100" onclick="sortLoans('amount')">เงินต้น <i class="fa-solid fa-sort text-slate-400 text-xs ml-1"></i></th>
+                                <th class="p-4 cursor-pointer hover:bg-slate-100" onclick="sortLoans('rate')">อัตราดอกเบี้ย <i class="fa-solid fa-sort text-slate-400 text-xs ml-1"></i></th>
+                                <th class="p-4 cursor-pointer hover:bg-slate-100" onclick="sortLoans('interest')">ดอกเบี้ย/เดือน <i class="fa-solid fa-sort text-slate-400 text-xs ml-1"></i></th>
+                                <th class="p-4 cursor-pointer hover:bg-slate-100" onclick="sortLoans('date')">วันที่เริ่มกู้ <i class="fa-solid fa-sort text-slate-400 text-xs ml-1"></i></th>
                                 <th class="p-4">กำหนดชำระถัดไป</th>
-                                <th class="p-4">สถานะ</th>
+                                <th class="p-4 cursor-pointer hover:bg-slate-100" onclick="sortLoans('status')">สถานะ <i class="fa-solid fa-sort text-slate-400 text-xs ml-1"></i></th>
                                 <th class="p-4 text-center">จัดการ</th>
                             </tr>
                         </thead>
@@ -443,6 +458,11 @@
         let currentCalDate = new Date();
         let pendingAction = null;
 
+        // ตัวแปรสำหรับระบบ Filter & Sorting
+        let currentStatusFilter = 'all';
+        let currentSortColumn = null;
+        let currentSortAsc = true;
+
         const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
         const thaiMonthsShort = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
@@ -491,9 +511,6 @@
         }
 
         function checkAutoOverdue() {
-            const todayStr = new Date().toISOString().split('T')[0];
-            let isUpdated = false;
-
             window.loans.forEach(item => {
                 if (!item.paidDates) item.paidDates = [];
             });
@@ -545,7 +562,7 @@
             }
 
             renderDashboard();
-            renderLoansTable();
+            filterAndRenderLoans();
             renderCustomers();
             if(!document.getElementById('page-calendar').classList.contains('hidden')) {
                 renderNativeCalendar();
@@ -686,7 +703,7 @@
             });
         }
 
-        /* GOOGLE CALENDAR NATIVE ENGINE (RECURRING MONTHLY) */
+        /* GOOGLE CALENDAR NATIVE ENGINE */
         function renderNativeCalendar() {
             const year = currentCalDate.getFullYear();
             const month = currentCalDate.getMonth();
@@ -796,7 +813,6 @@
         function prevMonth() { setCalMonth(-1); }
         function nextMonth() { setCalMonth(1); }
 
-        // ฟังก์ชันกระโดดไปวันที่ปัจจุบัน
         function jumpToToday() {
             currentCalDate = new Date();
             renderNativeCalendar();
@@ -871,14 +887,83 @@
             renderDashboard();
         }
 
-        function renderLoansTable() {
+        /* SEARCH, FILTER & SORTING LOGIC (GOOGLE SHEETS STYLE) */
+        function setStatusFilter(status) {
+            currentStatusFilter = status;
+            ['all', 'unpaid', 'paid', 'overdue'].forEach(s => {
+                const btn = document.getElementById(`filter-btn-${s}`);
+                if (s === status) {
+                    btn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-teal-600 text-white transition";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition";
+                }
+            });
+            filterAndRenderLoans();
+        }
+
+        function sortLoans(column) {
+            if (currentSortColumn === column) {
+                currentSortAsc = !currentSortAsc;
+            } else {
+                currentSortColumn = column;
+                currentSortAsc = true;
+            }
+            filterAndRenderLoans();
+        }
+
+        function filterAndRenderLoans() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            
+            // 1. Filter by Search & Status
+            let filtered = window.loans.filter(item => {
+                const matchSearch = item.name.toLowerCase().includes(searchText) || item.phone.toLowerCase().includes(searchText);
+                const matchStatus = currentStatusFilter === 'all' || item.status === currentStatusFilter;
+                return matchSearch && matchStatus;
+            });
+
+            // 2. Sort by Column (Google Sheets style)
+            if (currentSortColumn) {
+                filtered.sort((a, b) => {
+                    let valA, valB;
+                    const rateA = a.interestRate !== undefined ? a.interestRate : 10;
+                    const rateB = b.interestRate !== undefined ? b.interestRate : 10;
+
+                    if (currentSortColumn === 'name') {
+                        valA = a.name; valB = b.name;
+                        return currentSortAsc ? valA.localeCompare(valB, 'th') : valB.localeCompare(valA, 'th');
+                    } else if (currentSortColumn === 'amount') {
+                        valA = a.amount; valB = b.amount;
+                    } else if (currentSortColumn === 'rate') {
+                        valA = rateA; valB = rateB;
+                    } else if (currentSortColumn === 'interest') {
+                        valA = a.amount * (rateA / 100); valB = b.amount * (rateB / 100);
+                    } else if (currentSortColumn === 'date') {
+                        valA = new Date(a.startDate); valB = new Date(b.startDate);
+                    } else if (currentSortColumn === 'status') {
+                        valA = a.status; valB = b.status;
+                        return currentSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    }
+                    return currentSortAsc ? valA - valB : valB - valA;
+                });
+            }
+
+            renderLoansTable(filtered);
+        }
+
+        function renderLoansTable(dataList) {
             const tbody = document.getElementById('loansTableBody');
             tbody.innerHTML = '';
 
             const mobCards = document.getElementById('loansMobileCards');
             mobCards.innerHTML = '';
 
-            window.loans.forEach(item => {
+            if (dataList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-slate-400">ไม่พบข้อมูลสัญญากู้ที่ค้นหา</td></tr>`;
+                mobCards.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs">ไม่พบข้อมูลสัญญากู้ที่ค้นหา</div>`;
+                return;
+            }
+
+            dataList.forEach(item => {
                 const dueDateStr = getNextDueDateString(item.startDate);
                 const rate = item.interestRate !== undefined ? item.interestRate : 10;
                 const monthlyInterest = item.amount * (rate / 100);
@@ -965,6 +1050,7 @@
             if (loan) { 
                 loan.status = newStatus; 
                 if(window.saveDataToFirebase) window.saveDataToFirebase();
+                filterAndRenderLoans();
             }
         }
 
@@ -972,6 +1058,7 @@
             if (confirm('คุณต้องการลบสัญญานี้ใช่หรือไม่?')) {
                 window.loans = window.loans.filter(l => l.id !== id);
                 if(window.saveDataToFirebase) window.saveDataToFirebase();
+                filterAndRenderLoans();
             }
         }
 
@@ -1044,6 +1131,7 @@
 
             if(window.saveDataToFirebase) window.saveDataToFirebase();
             closeModal();
+            filterAndRenderLoans();
         }
 
         function exportData() {
@@ -1074,6 +1162,7 @@
                             window.loans = importedLoans;
                             if(window.saveDataToFirebase) window.saveDataToFirebase();
                             alert('นำเข้าข้อมูลเรียบร้อยแล้ว!');
+                            filterAndRenderLoans();
                         }
                     } else {
                         alert('รูปแบบไฟล์ Backup ไม่ถูกต้อง');
